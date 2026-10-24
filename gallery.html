@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="随机图库 · 从图片库随机挑选图片展示" />
+  <title>随机图库 · 资源导航站</title>
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --bg-soft: #0f1522;
+      --card: rgba(21, 28, 44, 0.72);
+      --card-hover: rgba(27, 36, 54, 0.92);
+      --border: rgba(120, 140, 180, 0.16);
+      --text: #e6eaf2;
+      --muted: #8b95a9;
+      --accent: #6c8cff;
+      --accent-2: #38bdf8;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+    [data-theme="light"] {
+      --bg: #f4f6fb;
+      --card: rgba(255, 255, 255, 0.85);
+      --card-hover: #ffffff;
+      --border: rgba(15, 25, 45, 0.10);
+      --text: #1c2433;
+      --muted: #5c6675;
+      --shadow: 0 10px 26px rgba(30, 50, 90, 0.10);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      background:
+        radial-gradient(900px 500px at 15% -5%, rgba(108, 140, 255, 0.16), transparent 60%),
+        radial-gradient(800px 460px at 90% 0%, rgba(56, 189, 248, 0.12), transparent 55%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ===== 顶栏 ===== */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      max-width: 1180px; margin: 0 auto; padding: 18px 22px 0;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
+    .brand .logo {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex; align-items: center; justify-content: center; font-size: 19px;
+      box-shadow: 0 4px 14px rgba(108, 140, 255, 0.4);
+    }
+    .nav { display: flex; gap: 8px; margin-left: auto; }
+    .nav-link {
+      padding: 7px 14px; border-radius: 10px; font-size: 13.5px;
+      color: var(--muted); border: 1px solid transparent; white-space: nowrap;
+      transition: all 0.18s ease;
+    }
+    .nav-link:hover { color: var(--text); background: var(--card); border-color: var(--border); }
+    .nav-link.active {
+      color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      font-weight: 600; box-shadow: 0 4px 14px rgba(108, 140, 255, 0.35);
+    }
+    .topbar-right { display: flex; align-items: center; gap: 14px; }
+    #clock { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .icon-btn {
+      width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); cursor: pointer; font-size: 16px;
+      transition: transform 0.15s ease, background 0.2s;
+    }
+    .icon-btn:hover { transform: translateY(-1px); background: var(--card-hover); }
+
+    /* ===== 头部 ===== */
+    .hero { max-width: 1180px; margin: 0 auto; padding: 44px 22px 8px; text-align: center; }
+    .hero h1 { font-size: clamp(26px, 4.5vw, 40px); letter-spacing: 1px; }
+    .hero h1 .grad {
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero p { margin-top: 10px; color: var(--muted); font-size: 14px; }
+    .hero .hint { margin-top: 8px; font-size: 12px; opacity: 0.8; }
+
+    .controls { max-width: 1180px; margin: 22px auto 0; padding: 0 22px; text-align: center; }
+    .btn {
+      padding: 10px 26px; border: none; border-radius: 12px; cursor: pointer;
+      font-size: 14.5px; font-weight: 600; color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 6px 18px rgba(108, 140, 255, 0.35);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(108, 140, 255, 0.45); }
+    .btn:active { transform: translateY(0); }
+
+    /* ===== 图片网格 ===== */
+    .grid {
+      max-width: 1180px; margin: 26px auto 0; padding: 0 22px;
+      display: grid; gap: 14px;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+    .img-card {
+      position: relative; border-radius: 16px; overflow: hidden; cursor: zoom-in;
+      border: 1px solid var(--border); background: var(--card);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      opacity: 0; animation: fadeUp 0.4s ease forwards;
+      animation-delay: calc(var(--i) * 40ms);
+    }
+    .img-card:hover {
+      transform: translateY(-4px); border-color: var(--accent); box-shadow: var(--shadow);
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .img-wrap {
+      position: relative; aspect-ratio: 4 / 3; overflow: hidden;
+      background: linear-gradient(135deg, rgba(108,140,255,0.10), rgba(56,189,248,0.10));
+    }
+    .img-wrap .placeholder {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      font-size: 38px; color: var(--muted); opacity: 0.6;
+    }
+    .img-wrap img {
+      position: relative; width: 100%; height: 100%; object-fit: cover;
+      display: block; transition: transform 0.35s ease;
+    }
+    .img-card:hover .img-wrap img { transform: scale(1.06); }
+    .img-card figcaption {
+      padding: 10px 14px; font-size: 13px; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .empty { max-width: 1180px; margin: 60px auto; text-align: center; color: var(--muted); }
+    .empty .big { font-size: 42px; margin-bottom: 12px; }
+
+    /* ===== 灯箱 ===== */
+    #lightbox {
+      position: fixed; inset: 0; z-index: 100; display: none;
+      align-items: center; justify-content: center;
+      background: rgba(5, 8, 15, 0.88); backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    #lightbox.open { display: flex; }
+    #lightbox .stage { position: relative; max-width: min(92vw, 1080px); text-align: center; }
+    #lightbox img {
+      max-width: 100%; max-height: 78vh; border-radius: 14px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+    #lightbox .lb-title {
+      margin-top: 14px; font-size: 14px; color: rgba(230, 234, 242, 0.85);
+    }
+    .lb-btn {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.08); color: #fff; font-size: 19px; cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .lb-btn:hover { background: rgba(255, 255, 255, 0.2); }
+    .lb-prev { left: -64px; } .lb-next { right: -64px; }
+    .lb-close {
+      position: absolute; top: -46px; right: 0; width: 40px; height: 40px;
+      border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.08); color: #fff; font-size: 17px; cursor: pointer;
+    }
+    .lb-close:hover { background: rgba(255, 255, 255, 0.2); }
+    @media (max-width: 700px) {
+      .lb-prev { left: 6px; } .lb-next { right: 6px; }
+      .lb-close { top: -46px; right: 0; }
+    }
+
+    footer {
+      max-width: 1180px; margin: 46px auto 0; padding: 26px 22px 34px;
+      text-align: center; font-size: 12.5px; color: var(--muted);
+      border-top: 1px solid var(--border); opacity: 0.9;
+    }
+
+    @media (max-width: 640px) {
+      .brand span { display: none; }
+      .topbar { padding-top: 14px; }
+      #clock { display: none; }
+      .hero { padding-top: 34px; }
+      .grid { grid-template-columns: repeat(auto-fill, minmax(100%, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">🌸</div>
+      <span>涩涩导航站</span>
+    </div>
+    <nav class="nav">
+      <a class="nav-link" href="index.html">🏠 首页导航</a>
+      <a class="nav-link active" href="gallery.html">🎲 随机aya美图</a>
+    </nav>
+    <div class="topbar-right">
+      <span id="clock">--</span>
+      <button class="icon-btn" id="themeBtn" title="切换深浅色" aria-label="切换深浅色">🌙</button>
+    </div>
+  </div>
+
+  <header class="hero">
+    <h1>随机<span class="grad">图库</span></h1>
+    <p>
+      库内共 <span id="totalCount">0</span> 张 · 每次随机展示 <span id="shownCount">0</span> 张
+    </p>
+    <p class="hint">点击图片放大预览 · 键盘 ← → 切换 · Esc 关闭 · 按 R 换一批</p>
+  </header>
+
+  <div class="controls">
+    <button class="btn" id="shuffleBtn">🔀 换一批</button>
+  </div>
+
+  <main class="grid" id="grid"></main>
+  <div class="empty" id="empty" hidden>
+    <div class="big">🖼️</div>
+    <p>图片库是空的：请确认 img 文件夹里有图片，并运行 update_images.ps1 重新编译本页面。</p>
+  </div>
+
+  <div id="lightbox" role="dialog" aria-modal="true" aria-label="图片预览">
+    <div class="stage">
+      <button class="lb-close" id="lbClose" title="关闭">✕</button>
+      <img id="lbImg" src="" alt="" />
+      <div class="lb-title" id="lbTitle"></div>
+      <button class="lb-btn lb-prev" id="lbPrev" title="上一张">‹</button>
+      <button class="lb-btn lb-next" id="lbNext" title="下一张">›</button>
+    </div>
+  </div>
+
+  <footer>
+    咱不是baka
+  </footer>
+
+  <script>
+        /* ============================================================
+     * 图片库：本块由 update_images.ps1 自动编译生成
+     * 新增 / 删除图片后请运行 update_images.ps1 重新编译本页面
+     * ============================================================ */
+        /* ===IMAGES-BEGIN=== (auto-generated, do not edit manually) */
+    const IMAGES = [
+      { src: "img/100255824_p0.jpg", title: "" },
+      { src: "img/100798958_p0.png", title: "" },
+      { src: "img/101107973_p0.jpg", title: "" },
+      { src: "img/101110695_p0.jpg", title: "" },
+      { src: "img/101117544_p0.png", title: "" },
+      { src: "img/101131103_p0.jpg", title: "" },
+      { src: "img/101132198_p0.png", title: "" },
+      { src: "img/101133686_p0.jpg", title: "" },
+      { src: "img/101146910_p0.png", title: "" },
+      { src: "img/101147392_p0.jpg", title: "" },
+      { src: "img/101490371_p0.png", title: "" },
+      { src: "img/101648833_p0.jpg", title: "" },
+      { src: "img/101733029_p0.png", title: "" },
+      { src: "img/10176214_p0.jpg", title: "" },
+      { src: "img/101763711_p0.jpg", title: "" },
+      { src: "img/101946646_p0.png", title: "" },
+      { src: "img/101961069_p0.jpg", title: "" },
+      { src: "img/102037474_p0.png", title: "" },
+      { src: "img/10207828_p0.jpg", title: "" },
+      { src: "img/102111396_p0.png", title: "" },
+      { src: "img/102267796_p0.png", title: "" },
+      { src: "img/102395922_p0.png", title: "" },
+      { src: "img/102423402_p0.png", title: "" },
+      { src: "img/102791355_p0.jpg", title: "" },
+      { src: "img/103399926_p0.jpg", title: "" },
+      { src: "img/103417107_p0.png", title: "" },
+      { src: "img/103693997_p0.jpg", title: "" },
+      { src: "img/103942594_p0.jpg", title: "" },
+      { src: "img/104022990_p0.jpg", title: "" },
+      { src: "img/104057793_p0.jpg", title: "" },
+      { src: "img/104737036_p0.jpg", title: "" },
+      { src: "img/105146524_p0.png", title: "" },
+      { src: "img/105311767_p0.png", title: "" },
+      { src: "img/105651027_p0.png", title: "" },
+      { src: "img/105887154_p0.jpg", title: "" },
+      { src: "img/106583797_p0.png", title: "" },
+      { src: "img/106752570_p0.png", title: "" },
+      { src: "img/106821499_p0.jpg", title: "" },
+      { src: "img/106867636_p0.jpg", title: "" },
+      { src: "img/106944661_p0.jpg", title: "" },
+      { src: "img/107721194_p0.jpg", title: "" },
+      { src: "img/108253649_p0.jpg", title: "" },
+      { src: "img/108253649_p1.jpg", title: "" },
+      { src: "img/108324103_p0.png", title: "" },
+      { src: "img/109111099_p0.png", title: "" },
+      { src: "img/109220899_p0.png", title: "" },
+      { src: "img/110031567_p0.png", title: "" },
+      { src: "img/110494527_p0.png", title: "" },
+      { src: "img/110954660_p0.jpg", title: "" },
+      { src: "img/111220776_p0.jpg", title: "" },
+      { src: "img/111234595_p0.jpg", title: "" },
+      { src: "img/111239440_p0.png", title: "" },
+      { src: "img/111240214_p0.png", title: "" },
+      { src: "img/111257505_p0.jpg", title: "" },
+      { src: "img/111265315_p0.jpg", title: "" },
+      { src: "img/111326512_p0.png", title: "" },
+      { src: "img/111327293_p0.png", title: "" },
+      { src: "img/111347252_p0.jpg", title: "" },
+      { src: "img/111356434_p0.png", title: "" },
+      { src: "img/111356529_p0.jpg", title: "" },
+      { src: "img/111478632_p0.jpg", title: "" },
+      { src: "img/111583493_p0.png", title: "" },
+      { src: "img/111620112_p0.png", title: "" },
+      { src: "img/112010118_p0.png", title: "" },
+      { src: "img/112411216_p0.jpg", title: "" },
+      { src: "img/112419965_p0.jpg", title: "" },
+      { src: "img/112739569_p0.jpg", title: "" },
+      { src: "img/112981481_p0.jpg", title: "" },
+      { src: "img/113052346_p0.jpg", title: "" },
+      { src: "img/113059051_p0.png", title: "" },
+      { src: "img/113192231_p0.jpg", title: "" },
+      { src: "img/113198713_p0.png", title: "" },
+      { src: "img/113498656_p0.jpg", title: "" },
+      { src: "img/113816755_p0.jpg", title: "" },
+      { src: "img/114006451_p0.png", title: "" },
+      { src: "img/114052593_p0.jpg", title: "" },
+      { src: "img/114461042_p0.png", title: "" },
+      { src: "img/115057439_p0.jpg", title: "" },
+      { src: "img/115117407_p0.jpg", title: "" },
+      { src: "img/115218136_p0.png", title: "" },
+      { src: "img/115222524_p0.jpg", title: "" },
+      { src: "img/115766745_p0.png", title: "" },
+      { src: "img/115789602_p0.png", title: "" },
+      { src: "img/116128804_p0.jpg", title: "" },
+      { src: "img/116280859_p0.jpg", title: "" },
+      { src: "img/116347368_p0.png", title: "" },
+      { src: "img/116567166_p0.png", title: "" },
+      { src: "img/116742098_p0.png", title: "" },
+      { src: "img/117621709_p0.jpg", title: "" },
+      { src: "img/117953975_p0.jpg", title: "" },
+      { src: "img/118038313_p0.jpg", title: "" },
+      { src: "img/118135859_p0.png", title: "" },
+      { src: "img/118239986_p0.jpg", title: "" },
+      { src: "img/118291248_p0.jpg", title: "" },
+      { src: "img/118549246_p0.jpg", title: "" },
+      { src: "img/118980271_p0.png", title: "" },
+      { src: "img/118980335_p0.png", title: "" },
+      { src: "img/118980822_p0.jpg", title: "" },
+      { src: "img/119204890_p0.jpg", title: "" },
+      { src: "img/119568004_p0.jpg", title: "" },
+      { src: "img/119982479_p0.png", title: "" },
+      { src: "img/119997847_p0.png", title: "" },
+      { src: "img/120246892_p0.jpg", title: "" },
+      { src: "img/120263934_p0.png", title: "" },
+      { src: "img/120703844_p0.jpg", title: "" },
+      { src: "img/120819187_p0.jpg", title: "" },
+      { src: "img/120830036_p0.png", title: "" },
+      { src: "img/121111062_p0.jpg", title: "" },
+      { src: "img/121118039_p0.jpg", title: "" },
+      { src: "img/121125217_p0.png", title: "" },
+      { src: "img/121206442_p0.png", title: "" },
+      { src: "img/121272653_p0.png", title: "" },
+      { src: "img/121504126_p0.jpg", title: "" },
+      { src: "img/121921797_p0.png", title: "" },
+      { src: "img/122072620_p0.jpg", title: "" },
+      { src: "img/122084357_p0.png", title: "" },
+      { src: "img/122230947_p0.png", title: "" },
+      { src: "img/122231774_p0.jpg", title: "" },
+      { src: "img/122233004_p0.jpg", title: "" },
+      { src: "img/122363041_p0.png", title: "" },
+      { src: "img/122430219_p0.jpg", title: "" },
+      { src: "img/122437588_p0.png", title: "" },
+      { src: "img/122478221_p0.jpg", title: "" },
+      { src: "img/122523336_p0.jpg", title: "" },
+      { src: "img/122525894_p0.jpg", title: "" },
+      { src: "img/122551853_p0.png", title: "" },
+      { src: "img/122608743_p0.jpg", title: "" },
+      { src: "img/122609228_p0.jpg", title: "" },
+      { src: "img/122611913_p0.png", title: "" },
+      { src: "img/122903136_p0.jpg", title: "" },
+      { src: "img/122911083_p0.jpg", title: "" },
+      { src: "img/122953986_p0.jpg", title: "" },
+      { src: "img/122969913_p0.jpg", title: "" },
+      { src: "img/122984759_p0.png", title: "" },
+      { src: "img/123009326_p0.jpg", title: "" },
+      { src: "img/123359667_p0.jpg", title: "" },
+      { src: "img/123614889_p0.jpg", title: "" },
+      { src: "img/123853839_p0.jpg", title: "" },
+      { src: "img/123853839_p1.jpg", title: "" },
+      { src: "img/123959074_p0.jpg", title: "" },
+      { src: "img/123968793_p0.jpg", title: "" },
+      { src: "img/124176128_p0.jpg", title: "" },
+      { src: "img/124202202_p0.jpg", title: "" },
+      { src: "img/124266282_p0.jpg", title: "" },
+      { src: "img/124267743_p0.png", title: "" },
+      { src: "img/124297682_p0.jpg", title: "" },
+      { src: "img/124438542_p0.jpg", title: "" },
+      { src: "img/124647356_p0.png", title: "" },
+      { src: "img/124898997_p0.png", title: "" },
+      { src: "img/125013771_p0.jpg", title: "" },
+      { src: "img/125099095_p0.png", title: "" },
+      { src: "img/125500459_p0.png", title: "" },
+      { src: "img/125651881_p0.jpg", title: "" },
+      { src: "img/125859658_p0.jpg", title: "" },
+      { src: "img/125924780_p0.jpg", title: "" },
+      { src: "img/126161572_p0.jpg", title: "" },
+      { src: "img/126346115_p0.png", title: "" },
+      { src: "img/126774170_p0.jpg", title: "" },
+      { src: "img/127061969_p0.jpg", title: "" },
+      { src: "img/127279355_p0.png", title: "" },
+      { src: "img/127325188_p0.jpg", title: "" },
+      { src: "img/128036266_p0.jpg", title: "" },
+      { src: "img/128074109_p0.jpg", title: "" },
+      { src: "img/128094973_p0.png", title: "" },
+      { src: "img/128321100_p0.jpg", title: "" },
+      { src: "img/128399162_p0.jpg", title: "" },
+      { src: "img/128883367_p0.jpg", title: "" },
+      { src: "img/129103328_p0.jpg", title: "" },
+      { src: "img/129444860_p0.png", title: "" },
+      { src: "img/131123803_p0.jpg", title: "" },
+      { src: "img/131532858_p0.jpg", title: "" },
+      { src: "img/131674941_p0.jpg", title: "" },
+      { src: "img/131706388_p0.jpg", title: "" },
+      { src: "img/132031784_p3.jpg", title: "" },
+      { src: "img/132100366_p0.jpg", title: "" },
+      { src: "img/132106710_p0.png", title: "" },
+      { src: "img/132352865_p0.png", title: "" },
+      { src: "img/132581741_p14.jpg", title: "" },
+      { src: "img/132581741_p15.jpg", title: "" },
+      { src: "img/132731135_p0.jpg", title: "" },
+      { src: "img/133085203_p0.jpg", title: "" },
+      { src: "img/133703387_p0.png", title: "" },
+      { src: "img/134009761_p0.jpg", title: "" },
+      { src: "img/13420829_p0.jpg", title: "" },
+      { src: "img/13443733_p0.jpg", title: "" },
+      { src: "img/135144959_p0.jpg", title: "" },
+      { src: "img/135916943_p0.jpg", title: "" },
+      { src: "img/136603778_p0.png", title: "" },
+      { src: "img/136690587_p0.png", title: "" },
+      { src: "img/140341537_p0.jpg", title: "" },
+      { src: "img/140587010_p0.png", title: "" },
+      { src: "img/14799910_p0.jpg", title: "" },
+      { src: "img/15034768_p0.png", title: "" },
+      { src: "img/16347313_p0.jpg", title: "" },
+      { src: "img/16833760_p0.jpg", title: "" },
+      { src: "img/1860424_p0.jpg", title: "" },
+      { src: "img/22281540_p0.png", title: "" },
+      { src: "img/22422354_p0.jpg", title: "" },
+      { src: "img/22786530_p0.jpg", title: "" },
+      { src: "img/23002105_p0.jpg", title: "" },
+      { src: "img/23443116_p0.jpg", title: "" },
+      { src: "img/23565944_p0.jpg", title: "" },
+      { src: "img/23573719_p0.png", title: "" },
+      { src: "img/23653989_p0.png", title: "" },
+      { src: "img/26180121_p0.jpg", title: "" },
+      { src: "img/27542717_p0.jpg", title: "" },
+      { src: "img/27873596_p0.jpg", title: "" },
+      { src: "img/2859716_p0.jpg", title: "" },
+      { src: "img/29049609_p0.jpg", title: "" },
+      { src: "img/29262121_p0.jpg", title: "" },
+      { src: "img/29503063_p0.png", title: "" },
+      { src: "img/29546892_p0.png", title: "" },
+      { src: "img/29c3888a515b3fcd65a0491503300737dd7a3a3f_raw.jpg", title: "" },
+      { src: "img/30169710_p0.jpg", title: "" },
+      { src: "img/30259326_p0.png", title: "" },
+      { src: "img/30650424_p0.png", title: "" },
+      { src: "img/31123065_p0.jpg", title: "" },
+      { src: "img/31493503_p0.jpg", title: "" },
+      { src: "img/31742943_p0.png", title: "" },
+      { src: "img/3175348_p0.jpg", title: "" },
+      { src: "img/3193782_p0.jpg", title: "" },
+      { src: "img/32312086_p0.jpg", title: "" },
+      { src: "img/33005852_p0.jpg", title: "" },
+      { src: "img/33883763_p0.jpg", title: "" },
+      { src: "img/33905064_p0.png", title: "" },
+      { src: "img/34050581_p0.jpg", title: "" },
+      { src: "img/34575554_p0.jpg", title: "" },
+      { src: "img/35273821_p0.jpg", title: "" },
+      { src: "img/35813843_p0.jpg", title: "" },
+      { src: "img/36425243_p0.png", title: "" },
+      { src: "img/36444904_p0.jpg", title: "" },
+      { src: "img/36466542_p0.jpg", title: "" },
+      { src: "img/36657834_p0.jpg", title: "" },
+      { src: "img/37017005_p0.png", title: "" },
+      { src: "img/37360078_p0.jpg", title: "" },
+      { src: "img/37501026_p0.png", title: "" },
+      { src: "img/37880621_p0.jpg", title: "" },
+      { src: "img/37905689_p0.jpg", title: "" },
+      { src: "img/38332909_p0.png", title: "" },
+      { src: "img/38425267_p0.png", title: "" },
+      { src: "img/38592587_p0.jpg", title: "" },
+      { src: "img/38656013_p0.png", title: "" },
+      { src: "img/39159127_p0.png", title: "" },
+      { src: "img/39405594_p0.png", title: "" },
+      { src: "img/3a8ffe0f9e2d7f0b1e7009c60ac7a24ff3625f95_raw.jpg", title: "" },
+      { src: "img/40001282_p0.jpg", title: "" },
+      { src: "img/40558747_p0.jpg", title: "" },
+      { src: "img/4092140_p0.jpg", title: "" },
+      { src: "img/41020957_p0.jpg", title: "" },
+      { src: "img/41180056_p0.jpg", title: "" },
+      { src: "img/41731839_p0.jpg", title: "" },
+      { src: "img/41946443_p0.jpg", title: "" },
+      { src: "img/42888153_p0.jpg", title: "" },
+      { src: "img/42921501_p0.jpg", title: "" },
+      { src: "img/43233302_p0.jpg", title: "" },
+      { src: "img/44231227_p0.jpg", title: "" },
+      { src: "img/44976485_p0.jpg", title: "" },
+      { src: "img/45031058_p0.jpg", title: "" },
+      { src: "img/45232371_p0.png", title: "" },
+      { src: "img/45670504_p0.png", title: "" },
+      { src: "img/46133005_p0.png", title: "" },
+      { src: "img/46310181_p0.jpg", title: "" },
+      { src: "img/46480654_p0.jpg", title: "" },
+      { src: "img/47004232_p0.jpg", title: "" },
+      { src: "img/47049368_p0.jpg", title: "" },
+      { src: "img/47124206_p0.png", title: "" },
+      { src: "img/47345848_p0.jpg", title: "" },
+      { src: "img/48319281_p0.jpg", title: "" },
+      { src: "img/49018936_p0.jpg", title: "" },
+      { src: "img/49043751_p0.png", title: "" },
+      { src: "img/49890691_p0.png", title: "" },
+      { src: "img/50026863_p0.png", title: "" },
+      { src: "img/50153644_p0.jpg", title: "" },
+      { src: "img/50275475_p0.jpg", title: "" },
+      { src: "img/50361905_p0.jpg", title: "" },
+      { src: "img/50641978_p0.jpg", title: "" },
+      { src: "img/51408977_p0.jpg", title: "" },
+      { src: "img/51592335_p0.png", title: "" },
+      { src: "img/51922034_p0.jpg", title: "" },
+      { src: "img/52095335_p0.jpg", title: "" },
+      { src: "img/52490134_p0.jpg", title: "" },
+      { src: "img/52620407_p0.jpg", title: "" },
+      { src: "img/52653551_p0.jpg", title: "" },
+      { src: "img/52869582_p0.jpg", title: "" },
+      { src: "img/52953349_p0.jpg", title: "" },
+      { src: "img/52984721_p0.png", title: "" },
+      { src: "img/53938563_p0.png", title: "" },
+      { src: "img/54114816_p0.png", title: "" },
+      { src: "img/54136384_p0.jpg", title: "" },
+      { src: "img/54363386_p0.jpg", title: "" },
+      { src: "img/54476922_p0.png", title: "" },
+      { src: "img/54674591_p0.png", title: "" },
+      { src: "img/54706078_p0.jpg", title: "" },
+      { src: "img/5490342_p0.png", title: "" },
+      { src: "img/55406873_p0.png", title: "" },
+      { src: "img/55619080_p0.png", title: "" },
+      { src: "img/55684964_p0.jpg", title: "" },
+      { src: "img/56342864_p0.jpg", title: "" },
+      { src: "img/56866134_p0.jpg", title: "" },
+      { src: "img/56916095_p0.png", title: "" },
+      { src: "img/57208835_p0.jpg", title: "" },
+      { src: "img/58368277_p0.jpg", title: "" },
+      { src: "img/59311945_p0.jpg", title: "" },
+      { src: "img/59396474_p0.png", title: "" },
+      { src: "img/59482424_p0.jpg", title: "" },
+      { src: "img/59547646_p0.jpg", title: "" },
+      { src: "img/59648670_p0.png", title: "" },
+      { src: "img/59652059_p0.jpg", title: "" },
+      { src: "img/59866835_p0.png", title: "" },
+      { src: "img/60000977_p0.jpg", title: "" },
+      { src: "img/60195167_p0.png", title: "" },
+      { src: "img/60575451_p0.jpg", title: "" },
+      { src: "img/60922953_p0.jpg", title: "" },
+      { src: "img/60973519_p0.jpg", title: "" },
+      { src: "img/61002489_p0.png", title: "" },
+      { src: "img/61023016_p0.jpg", title: "" },
+      { src: "img/61413824_p0.png", title: "" },
+      { src: "img/61702402_p0.jpg", title: "" },
+      { src: "img/62171593_p0.jpg", title: "" },
+      { src: "img/62494712_p0.jpg", title: "" },
+      { src: "img/62512328_p1.jpg", title: "" },
+      { src: "img/62551464_p0.png", title: "" },
+      { src: "img/62642196_p0.jpg", title: "" },
+      { src: "img/63149861_p0.png", title: "" },
+      { src: "img/63372451_p0.png", title: "" },
+      { src: "img/63826882_p0.jpg", title: "" },
+      { src: "img/63838619_p0.png", title: "" },
+      { src: "img/63992855_p0.png", title: "" },
+      { src: "img/64116624_p0.jpg", title: "" },
+      { src: "img/64873443_p0.png", title: "" },
+      { src: "img/64913580_p0.jpg", title: "" },
+      { src: "img/64930938_p0.png", title: "" },
+      { src: "img/64993536_p0.png", title: "" },
+      { src: "img/65192676_p0.jpg", title: "" },
+      { src: "img/65240552_p0.jpg", title: "" },
+      { src: "img/65538622_p0.jpg", title: "" },
+      { src: "img/65893742_p0.jpg", title: "" },
+      { src: "img/65965236_p0.jpg", title: "" },
+      { src: "img/66505110_p0.jpg", title: "" },
+      { src: "img/66545511_p0.jpg", title: "" },
+      { src: "img/66672029_p0.png", title: "" },
+      { src: "img/66693378_p0.jpg", title: "" },
+      { src: "img/67448295_p0.jpg", title: "" },
+      { src: "img/68051070_p0.jpg", title: "" },
+      { src: "img/68103423_p0.png", title: "" },
+      { src: "img/68103652_p0.jpg", title: "" },
+      { src: "img/68214776_p0.jpg", title: "" },
+      { src: "img/68412686_p0.jpg", title: "" },
+      { src: "img/68444549_p0.jpg", title: "" },
+      { src: "img/68616742_p0.jpg", title: "" },
+      { src: "img/68989713_p0.jpg", title: "" },
+      { src: "img/69032847_p0.jpg", title: "" },
+      { src: "img/69071446_p0.png", title: "" },
+      { src: "img/69301752_p0.jpg", title: "" },
+      { src: "img/70497723_p0.jpg", title: "" },
+      { src: "img/70497723_p1.jpg", title: "" },
+      { src: "img/70801810_p0.jpg", title: "" },
+      { src: "img/70857110_p0.jpg", title: "" },
+      { src: "img/71147118_p0.jpg", title: "" },
+      { src: "img/71271293_p0.jpg", title: "" },
+      { src: "img/71481776_p0.jpg", title: "" },
+      { src: "img/71490212_p0.png", title: "" },
+      { src: "img/71504786_p0.jpg", title: "" },
+      { src: "img/71532408_p0.jpg", title: "" },
+      { src: "img/71654282_p0.png", title: "" },
+      { src: "img/71877309_p0.jpg", title: "" },
+      { src: "img/71889301_p0.png", title: "" },
+      { src: "img/72060351_p0.png", title: "" },
+      { src: "img/72391140_p0.jpg", title: "" },
+      { src: "img/72409559_p0.png", title: "" },
+      { src: "img/72854625_p1.png", title: "" },
+      { src: "img/73059915_p0.png", title: "" },
+      { src: "img/73598870_p0.jpg", title: "" },
+      { src: "img/73712360_p0.png", title: "" },
+      { src: "img/73994710_p0.png", title: "" },
+      { src: "img/74039784_p0.png", title: "" },
+      { src: "img/74477819_p0.jpg", title: "" },
+      { src: "img/74967465_p0.png", title: "" },
+      { src: "img/74980861_p0.jpg", title: "" },
+      { src: "img/75449068_p0.jpg", title: "" },
+      { src: "img/75449068_p1.jpg", title: "" },
+      { src: "img/75449068_p2.jpg", title: "" },
+      { src: "img/75449068_p3.jpg", title: "" },
+      { src: "img/75566111_p0.jpg", title: "" },
+      { src: "img/75941755_p0.png", title: "" },
+      { src: "img/76509578_p0.png", title: "" },
+      { src: "img/76836001_p0.png", title: "" },
+      { src: "img/76963469_p0.png", title: "" },
+      { src: "img/77032931_p0.png", title: "" },
+      { src: "img/77097183_p0.jpg", title: "" },
+      { src: "img/77215675_p0.png", title: "" },
+      { src: "img/77595179_p0.jpg", title: "" },
+      { src: "img/77768471_p0.jpg", title: "" },
+      { src: "img/77800014_p0.png", title: "" },
+      { src: "img/77813431_p0.jpg", title: "" },
+      { src: "img/77836770_p0.jpg", title: "" },
+      { src: "img/77837502_p0.png", title: "" },
+      { src: "img/77996840_p0.jpg", title: "" },
+      { src: "img/78269913_p0.jpg", title: "" },
+      { src: "img/78438375_p0.png", title: "" },
+      { src: "img/78475695_p0.png", title: "" },
+      { src: "img/78493561_p0.png", title: "" },
+      { src: "img/78512417_p0.png", title: "" },
+      { src: "img/79318141_p0.png", title: "" },
+      { src: "img/79851517_p0.jpg", title: "" },
+      { src: "img/80115661_p0.jpg", title: "" },
+      { src: "img/80436837_p0.jpg", title: "" },
+      { src: "img/80705839_p0.jpg", title: "" },
+      { src: "img/80727783_p0.jpg", title: "" },
+      { src: "img/808539_p0.jpg", title: "" },
+      { src: "img/81817579_p0.jpg", title: "" },
+      { src: "img/82411962_p0.jpg", title: "" },
+      { src: "img/82545659_p0.png", title: "" },
+      { src: "img/82594700_p0.jpg", title: "" },
+      { src: "img/82956756_p0.png", title: "" },
+      { src: "img/83050349_p0.png", title: "" },
+      { src: "img/83950757_p0.png", title: "" },
+      { src: "img/84223059_p0.png", title: "" },
+      { src: "img/84302880_p0.png", title: "" },
+      { src: "img/84357218_p0.png", title: "" },
+      { src: "img/84579791_p0.jpg", title: "" },
+      { src: "img/84808257_p0.jpg", title: "" },
+      { src: "img/85120175_p0.jpg", title: "" },
+      { src: "img/85372143_p0.jpg", title: "" },
+      { src: "img/85395226_p0.png", title: "" },
+      { src: "img/85808963_p0.jpg", title: "" },
+      { src: "img/85809206_p0.png", title: "" },
+      { src: "img/85809362_p0.jpg", title: "" },
+      { src: "img/85809911_p0.jpg", title: "" },
+      { src: "img/85826401_p0.png", title: "" },
+      { src: "img/85838606_p0.jpg", title: "" },
+      { src: "img/85860750_p0.jpg", title: "" },
+      { src: "img/85905930_p0.jpg", title: "" },
+      { src: "img/86083130_p0.png", title: "" },
+      { src: "img/86266283_p0.png", title: "" },
+      { src: "img/86324898_p0.jpg", title: "" },
+      { src: "img/86325464_p0.png", title: "" },
+      { src: "img/86362317_p0.png", title: "" },
+      { src: "img/86563654_p0.jpg", title: "" },
+      { src: "img/86624763_p24.jpg", title: "" },
+      { src: "img/86624763_p35.jpg", title: "" },
+      { src: "img/86624763_p36.jpg", title: "" },
+      { src: "img/86624763_p66.jpg", title: "" },
+      { src: "img/86624763_p82.jpg", title: "" },
+      { src: "img/86651532_p0.png", title: "" },
+      { src: "img/86983777_p0.png", title: "" },
+      { src: "img/87085530_p0.png", title: "" },
+      { src: "img/87193240_p0.png", title: "" },
+      { src: "img/87745635_p0.jpg", title: "" },
+      { src: "img/8784842_p0.jpg", title: "" },
+      { src: "img/88339075_p0.jpg", title: "" },
+      { src: "img/88371707_p0.jpg", title: "" },
+      { src: "img/88645696_p0.jpg", title: "" },
+      { src: "img/88733709_p0.jpg", title: "" },
+      { src: "img/88748221_p0.jpg", title: "" },
+      { src: "img/89346006_p0.png", title: "" },
+      { src: "img/89501904_p0.jpg", title: "" },
+      { src: "img/90251633_p0.jpg", title: "" },
+      { src: "img/90efd1270a2a32f88f011e144ab11214f25f13d5_raw.jpg", title: "" },
+      { src: "img/91022713_p0.jpg", title: "" },
+      { src: "img/91131322_p0.png", title: "" },
+      { src: "img/91469575_p3.jpg", title: "" },
+      { src: "img/91710517_p0.png", title: "" },
+      { src: "img/92492045_p0.png", title: "" },
+      { src: "img/92803051_p0.jpg", title: "" },
+      { src: "img/92828704_p0.jpg", title: "" },
+      { src: "img/92851177_p0.png", title: "" },
+      { src: "img/92854455_p0.jpg", title: "" },
+      { src: "img/92859682_p0.png", title: "" },
+      { src: "img/92871766_p0.jpg", title: "" },
+      { src: "img/928fa293210b529335f8ac6e8f70460adc998f93_raw.jpg", title: "" },
+      { src: "img/92968262_p0.jpg", title: "" },
+      { src: "img/93103250_p0.png", title: "" },
+      { src: "img/93155007_p0.png", title: "" },
+      { src: "img/93190084_p0.png", title: "" },
+      { src: "img/93351591_p0.jpg", title: "" },
+      { src: "img/93492900_p0.jpg", title: "" },
+      { src: "img/93509156_p0.jpg", title: "" },
+      { src: "img/93607676_p0.png", title: "" },
+      { src: "img/93793303_p0.jpg", title: "" },
+      { src: "img/94034101_p0.jpg", title: "" },
+      { src: "img/94195874_p0.jpg", title: "" },
+      { src: "img/94308020_p0.jpg", title: "" },
+      { src: "img/94353558_p0.png", title: "" },
+      { src: "img/94755393_p0.jpg", title: "" },
+      { src: "img/94955844_p0.png", title: "" },
+      { src: "img/95235988_p0.jpg", title: "" },
+      { src: "img/95414512_p0.png", title: "" },
+      { src: "img/95499612_p0.png", title: "" },
+      { src: "img/95520875_p0.png", title: "" },
+      { src: "img/95732059_p0.png", title: "" },
+      { src: "img/95929263_p0.jpg", title: "" },
+      { src: "img/96078807_p0.jpg", title: "" },
+      { src: "img/96178800_p0.png", title: "" },
+      { src: "img/96178800_p1.png", title: "" },
+      { src: "img/96212007_p0.png", title: "" },
+      { src: "img/97070847_p0.jpg", title: "" },
+      { src: "img/97287706_p0.jpg", title: "" },
+      { src: "img/97568143_p0.jpg", title: "" },
+      { src: "img/97649768_p0.png", title: "" },
+      { src: "img/97715322_p0.png", title: "" },
+      { src: "img/97739746_p0.png", title: "" },
+      { src: "img/97778636_p0.png", title: "" },
+      { src: "img/97888215_p0.png", title: "" },
+      { src: "img/98174368_p0.png", title: "" },
+      { src: "img/98194799_p0.png", title: "" },
+      { src: "img/98302002_p0.jpg", title: "" },
+      { src: "img/98596685_p0.png", title: "" },
+      { src: "img/98780790_p0.jpg", title: "" },
+      { src: "img/98882757_p0.jpg", title: "" },
+      { src: "img/98903806_p0.png", title: "" },
+      { src: "img/98970774_p0.jpg", title: "" },
+      { src: "img/99252949_p0.jpg", title: "" },
+      { src: "img/99303376_p0.png", title: "" },
+      { src: "img/99390544_p0.png", title: "" },
+      { src: "img/99459405_p0.jpg", title: "" },
+      { src: "img/99766337_p0.jpg", title: "" },
+      { src: "img/99794748_p0.png", title: "" },
+      { src: "img/a9fad214ba9d00fddc2a96af811e13b8fa1a35f0_raw.jpg", title: "" },
+      { src: "img/d1eda419f994bec002e7a78adb373eb38259ea51_raw.jpg", title: "" },
+      { src: "img/Screenshot_20231029_151035_tv.danmaku.bili_edit_74605192861011.jpg", title: "" },
+      { src: "img/ブンブンブン丸_18047920.jpg", title: "" },
+      { src: "img/限界を迎えた文ちゃん。_113725350_p1.jpg", title: "" },
+    ];
+    /* ===IMAGES-END=== */
+
+
+    /* ================= 渲染逻辑（一般无需修改） ================= */
+    const BATCH_SIZE = 12;          // 每次随机展示的张数
+    const grid = document.getElementById("grid");
+    const empty = document.getElementById("empty");
+    const shuffleBtn = document.getElementById("shuffleBtn");
+    const totalCount = document.getElementById("totalCount");
+    const shownCount = document.getElementById("shownCount");
+
+    let batch = [];                 // 当前这一批图片
+    let lbIndex = 0;                // 灯箱当前索引
+
+    // Fisher-Yates 洗牌
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function renderGrid() {
+      if (!IMAGES.length) { grid.innerHTML = ""; empty.hidden = false; return; }
+      empty.hidden = true;
+      // 先从未展示过的图里抽，不足再回全库补，避免连续两批重复
+      const lastSrc = new Set(batch.map(b => b.src));
+      const fresh = IMAGES.filter(it => !lastSrc.has(it.src));
+      const pool = fresh.length >= BATCH_SIZE ? fresh : IMAGES;
+      batch = shuffle(pool).slice(0, Math.min(BATCH_SIZE, pool.length));
+      shownCount.textContent = batch.length;
+      totalCount.textContent = IMAGES.length;
+
+      grid.innerHTML = batch.map((item, i) => `
+        <figure class="img-card" style="--i:${i}" data-index="${i}" tabindex="0" role="button"
+                aria-label="预览：${item.title || "图片"}">
+          <div class="img-wrap">
+            <span class="placeholder">🖼️</span>
+            <img src="${item.src}" alt="${item.title || "图片"}" loading="lazy" decoding="async"
+                 onerror="this.style.display='none'" />
+          </div>
+          <figcaption>${item.title || ""}</figcaption>
+        </figure>`).join("");
+    }
+
+    /* ---------- 灯箱 ---------- */
+    const lightbox = document.getElementById("lightbox");
+    const lbImg = document.getElementById("lbImg");
+    const lbTitle = document.getElementById("lbTitle");
+
+    function openLightbox(i) {
+      lbIndex = i;
+      const item = batch[lbIndex];
+      lbImg.src = item.src;
+      lbImg.alt = item.title || "图片";
+      lbTitle.textContent = item.title || "";
+      lightbox.classList.add("open");
+      document.body.style.overflow = "hidden";
+    }
+    function closeLightbox() {
+      lightbox.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+    function step(delta) {
+      lbIndex = (lbIndex + delta + batch.length) % batch.length;
+      const item = batch[lbIndex];
+      lbImg.src = item.src;
+      lbImg.alt = item.title || "图片";
+      lbTitle.textContent = item.title || "";
+    }
+
+    // 事件委托：点击卡片 → 灯箱
+    grid.addEventListener("click", (e) => {
+      const card = e.target.closest(".img-card");
+      if (card) openLightbox(Number(card.dataset.index));
+    });
+    grid.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        const card = e.target.closest(".img-card");
+        if (card) { e.preventDefault(); openLightbox(Number(card.dataset.index)); }
+      }
+    });
+    document.getElementById("lbClose").addEventListener("click", closeLightbox);
+    document.getElementById("lbPrev").addEventListener("click", () => step(-1));
+    document.getElementById("lbNext").addEventListener("click", () => step(1));
+    lightbox.addEventListener("click", (e) => { if (e.target === lightbox) closeLightbox(); });
+
+    // 换一批
+    shuffleBtn.addEventListener("click", renderGrid);
+
+    // 快捷键：Esc 关闭 · ←→ 切换 · R 换一批
+    document.addEventListener("keydown", (e) => {
+      if (lightbox.classList.contains("open")) {
+        if (e.key === "Escape") closeLightbox();
+        else if (e.key === "ArrowLeft") step(-1);
+        else if (e.key === "ArrowRight") step(1);
+        return;
+      }
+      if ((e.key === "r" || e.key === "R") &&
+          !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+        renderGrid();
+      }
+    });
+
+    /* ---------- 时钟 & 主题（与首页同步） ---------- */
+    function tick() {
+      const now = new Date();
+      const week = ["日", "一", "二", "三", "四", "五", "六"][now.getDay()];
+      const pad = n => String(n).padStart(2, "0");
+      document.getElementById("clock").textContent =
+        `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 周${week} ` +
+        `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+    tick(); setInterval(tick, 1000);
+
+    const themeBtn = document.getElementById("themeBtn");
+    const saved = localStorage.getItem("nav-theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = saved ? saved === "dark" : prefersDark;
+    const applyTheme = (dark) => {
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      themeBtn.textContent = dark ? "🌙" : "☀️";
+      localStorage.setItem("nav-theme", dark ? "dark" : "light");
+    };
+    applyTheme(isDark);
+    themeBtn.addEventListener("click", () => {
+      applyTheme(document.documentElement.dataset.theme !== "dark");
+    });
+
+    renderGrid();
+  </script>
+</body>
+</html>
